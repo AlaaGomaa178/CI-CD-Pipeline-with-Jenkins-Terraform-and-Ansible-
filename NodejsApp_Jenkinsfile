@@ -1,0 +1,59 @@
+pipeline {
+    agent { 
+        label 'private-ec2-slave'
+    }
+    
+    environment {
+        RDS_HOSTNAME   = credentials('RDS_HOSTNAME')
+        RDS_USERNAME   = credentials('RDS_USERNAME')
+        RDS_PASSWORD   = credentials('RDS_PASSWORD')
+        RDS_PORT       = credentials('RDS_PORT')
+        REDIS_HOSTNAME = credentials('REDIS_HOSTNAME')
+        REDIS_PORT     = credentials('REDIS_PORT')
+    }
+    
+    stages {
+        stage('Clone Github Repo') {
+            steps {
+                git branch: 'rds_redis', url: 'https://github.com/mahmoud254/jenkins_nodejs_example.git'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                script {
+                    sh 'docker build -f dockerfile -t nodejsapp .'
+                }
+            }
+        }
+
+    stage('Docker Run => Deploy the app') {
+        steps {
+            script {
+                def containerName = 'nodejsapp_container'
+
+                // Check if the container already exists
+                def existingContainer = sh(script: "docker ps -aqf name=${containerName}", returnStdout: true).trim()
+                
+                if (existingContainer) {
+                    // Stop and remove the existing container
+                    sh "docker stop ${containerName}"
+                    sh "docker rm ${containerName}"
+                }
+
+                // Run the Docker container
+                sh '''
+                    docker run -d -p 3000:3000 \
+                    -e RDS_HOSTNAME \
+                    -e RDS_USERNAME \
+                    -e RDS_PASSWORD \
+                    -e RDS_PORT \
+                    -e REDIS_HOSTNAME \
+                    -e REDIS_PORT \
+                    --name nodejsapp_container nodejsapp
+                '''
+            }
+        }
+    }
+   }
+}
