@@ -1,0 +1,46 @@
+---
+# tasks file for configure-jenkins-public-slave
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Java
+  apt:
+    name: openjdk-11-jdk
+    state: present
+
+- name: Create ubuntu Slave Folder
+  file:
+    path: "jenkins_slave"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+
+- name: Install required packages to install terraform
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - gnupg
+    - software-properties-common
+
+- name: Add HashiCorp GPG key
+  apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    state: present
+
+- name: Add HashiCorp repository
+  apt_repository:
+    repo: deb https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main
+    state: present
+    filename: 'hashicorp'
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Terraform
+  apt:
+    name: terraform
+    state: present
